@@ -9,15 +9,24 @@ from pydantic import BaseModel, Field, ConfigDict, field_validator
 from app.routers.auth import router as auth_router
 from app.services.llm import generate_question, review_code_ai
 
-# Updated import path to match app/db/database.py
+# Force table creation on app startup
 try:
     from app.db.database import Base, engine
-    # Make sure models are loaded before metadata.create_all is called
-    import app.models  # or app.db.models depending on your models file location
-    Base.metadata.create_all(bind=engine)
-except Exception as db_init_err:
-    print(f"⚠️ Database initialization warning: {db_init_err}")
     
+    # Try importing models from both common locations
+    try:
+        import app.models  # type: ignore
+    except ImportError:
+        try:
+            import app.db.models  # type: ignore
+        except ImportError:
+            print("⚠️ Could not import models automatically. Check your model file path.")
+
+    Base.metadata.create_all(bind=engine)
+    print("✅ Database tables created successfully!")
+except Exception as db_init_err:
+    print(f"🚨 Database initialization error: {str(db_init_err)}")
+
 # Initialize FastAPI App
 app = FastAPI(title="CodeCoach MVP API")
 
