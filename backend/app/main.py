@@ -9,10 +9,18 @@ from pydantic import BaseModel, Field, ConfigDict, field_validator
 from app.routers.auth import router as auth_router
 from app.services.llm import generate_question, review_code_ai
 
+# Import database elements to ensure tables are created on startup
+try:
+    from app.database import Base, engine
+    Base.metadata.create_all(bind=engine)
+except Exception as db_init_err:
+    print(f"⚠️ Database initialization warning: {db_init_err}")
+
 # Initialize FastAPI App
 app = FastAPI(title="CodeCoach MVP API")
 
 
+# Exception handler for 422 Validation Errors
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     print("\n================ 🚨 422 VALIDATION ERROR 🚨 ================")
@@ -24,7 +32,19 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
-# Updated origins to allow local dev + Vercel frontend domains
+# Exception handler for unhandled 500 Server Errors (Prevents dropping CORS headers)
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    print(f"\n================ 🚨 500 INTERNAL SERVER ERROR 🚨 ================")
+    print(f"Error: {str(exc)}")
+    print("=================================================================\n")
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": f"Internal server error: {str(exc)}"},
+    )
+
+
+# CORS setup
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -35,14 +55,14 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Set to "*" so any Vercel preview/production link can access the API
+    allow_origins=["*"],  # Allows all origins (including Vercel previews)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# Root & Health Check Endpoints (Fixes 404s in Render logs)
+# Root & Health Check Endpoints
 @app.get("/")
 async def root():
     return {"message": "CodeCoach MVP API is live and running!"}
@@ -53,6 +73,7 @@ async def health_check():
     return {"status": "healthy"}
 
 
+# Include Authentication Router
 app.include_router(auth_router)
 
 # In-memory user state database for streaks & skill progression
