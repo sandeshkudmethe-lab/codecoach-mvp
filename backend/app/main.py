@@ -24,20 +24,34 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
+# Updated origins to allow local dev + Vercel frontend domains
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://codecoach-mvp-bb6l.vercel.app",
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],  # Set to "*" so any Vercel preview/production link can access the API
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Root & Health Check Endpoints (Fixes 404s in Render logs)
+@app.get("/")
+async def root():
+    return {"message": "CodeCoach MVP API is live and running!"}
+
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
+
 
 app.include_router(auth_router)
 
