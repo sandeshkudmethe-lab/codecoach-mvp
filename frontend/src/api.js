@@ -2,7 +2,7 @@
  * Thin fetch wrapper for the FastAPI backend. Token lives in localStorage
  * and is attached to every authenticated call.
  */
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
+const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || 'https://codecoach-mvp.onrender.com'
 
 function authHeaders() {
   const token = localStorage.getItem('cc_token')
